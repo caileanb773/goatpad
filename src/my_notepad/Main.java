@@ -19,7 +19,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -105,7 +104,7 @@ public class Main {
 		});
 
 		// Icon
-		ImageIcon icon = new ImageIcon("icon.png");
+		ImageIcon icon = new ImageIcon("asset/icon.png");
 		frame.setIconImage(icon.getImage());
 
 		frame.setVisible(true);
@@ -127,7 +126,7 @@ public class Main {
 		StringBuilder sb = new StringBuilder();
 		String temp = "";
 
-		try (BufferedReader reader = new BufferedReader(new FileReader("credits.txt"))) {
+		try (BufferedReader reader = new BufferedReader(new FileReader("asset/credits.txt"))) {
 			while ((temp = reader.readLine()) != null) {
 				sb.append(temp).append("\n");
 			}
