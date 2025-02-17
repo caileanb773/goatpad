@@ -1,0 +1,4 @@
+-Implement copy/paste
+-Add save protection on close
+-Implement shortcuts
+-French translation
