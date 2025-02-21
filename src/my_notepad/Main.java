@@ -36,10 +36,12 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 public class Main {
+	
+	// TODO: FileNotFoundException is thrown when saving as a path instead of creating folders
 
 	public static final int SUCCESS = 0;
 	public static final int FAIL = -1;
-	private static boolean isModified = false;
+	public static boolean isModified = false;
 
 	public static void main(String[] args) {
 
@@ -91,16 +93,19 @@ public class Main {
 		// Action Events
 		mSave.addActionListener(_ -> saveFile(frame, "Enter a name for the file: ", input));
 		mOpen.addActionListener(_ -> openFile(frame, "Enter the name of file to open: ", input));
-		mExit.addActionListener(_ -> frame.dispose());
+		mExit.addActionListener(_ -> checkBeforeExit(frame, input));
 		mDateTime.addActionListener(_ -> writeDateTime(input));
 		mPaste.addActionListener(_ -> pasteFromClipBoard(input));
 		mAbout.addActionListener(_ -> printAbout(frame));
 		mNew.addActionListener(_ -> checkBeforeNewFile(frame, input));
 
 		input.getDocument().addDocumentListener(new DocumentListener() {
-			public void insertUpdate(DocumentEvent e) { isModified = true; }
-			public void removeUpdate(DocumentEvent e) { isModified = true; }
-			public void changedUpdate(DocumentEvent e) { isModified = true; }
+			public void insertUpdate(DocumentEvent e) { isModified = true; 
+			System.out.println("isModified is now: " + isModified);}
+			public void removeUpdate(DocumentEvent e) { isModified = true; 
+			System.out.println("isModified is now: " + isModified);}
+			public void changedUpdate(DocumentEvent e) { isModified = true; 
+			System.out.println("isModified is now: " + isModified);}
 		});
 
 		// Icon
@@ -154,10 +159,11 @@ public class Main {
 	public static void newFile(JFrame frame, JTextArea area) {
 		frame.setTitle("Goatpad");
 		area.setText("");
+		isModified = false;
 	}
 
 	public static void checkBeforeNewFile(JFrame frame, JTextArea area) {
-		if (isModified) {
+		if (isModified == true) {
 			int choice = JOptionPane.showConfirmDialog(
 					frame,
 					"You have unsaved changes.\nSave before making new file?",
@@ -168,9 +174,12 @@ public class Main {
 					return;
 				}
 			} else if (choice == JOptionPane.CANCEL_OPTION
-					|| choice == JOptionPane.NO_OPTION) {
+					|| choice == JOptionPane.NO_OPTION
+					|| choice == JOptionPane.CLOSED_OPTION) {
 				return;
 			}
+			newFile(frame, area);
+		} else {
 			newFile(frame, area);
 		}
 	}
@@ -188,23 +197,28 @@ public class Main {
 				} else {
 					frame.dispose();
 				}
-			} else if (choice == JOptionPane.CANCEL_OPTION) {
+			} else if (choice == JOptionPane.CANCEL_OPTION
+					|| choice == JOptionPane.CLOSED_OPTION) {
 				return;
 			} else if (choice == JOptionPane.NO_OPTION) {
 				frame.dispose();
 			}
 			newFile(frame, area);
+		} else {
+			frame.dispose();
 		}
 	}
 
 	public static int saveFile(JFrame frame, String prompt, JTextArea area) {
 		String fName = getFileName(frame, prompt);
 		if (fName == null || fName.isEmpty()) {
+			System.out.println("getFileName in saveFile returned FAIL");
 			return FAIL;
 		}
 
 		if (saveFromTextArea(frame, area, fName) == SUCCESS) {
 			isModified = false;
+			System.out.println("isModified is now: " + isModified);
 			frame.setTitle("Goatpad - " + fName);
 			return SUCCESS;
 		} else {
@@ -214,9 +228,15 @@ public class Main {
 
 	public static int openFile(JFrame frame, String prompt, JTextArea area) {
 		String fName = getFileName(frame, prompt);
+		
+		if (fName == null) {
+			return FAIL;
+		}
+		
 		if (writeToTextArea(frame, area, fName) == SUCCESS) {
 			frame.setTitle("Goatpad - " + fName);
 			isModified = false;
+			System.out.println("isModified is now: " + isModified);
 			return SUCCESS;
 		} else {
 			return FAIL;
@@ -224,52 +244,53 @@ public class Main {
 	}
 
 	public static String getFileName(JFrame frame, String prompt) {
-		AtomicReference<String> fName = new AtomicReference<>(null);
+	    AtomicReference<String> fName = new AtomicReference<>(null);
 
-		JDialog d = new JDialog(frame, prompt, true);
-		d.setLayout(new FlowLayout());
-		JButton ok = new JButton("OK");
-		JButton canc = new JButton("Cancel");
-		JTextField in = new JTextField(10);
-		d.add(new JLabel(prompt));
-		d.add(in);
-		d.add(ok);
-		d.add(canc);
+	    JDialog d = new JDialog(frame, prompt, true);
+	    d.setLayout(new FlowLayout());
+	    JButton ok = new JButton("OK");
+	    JButton canc = new JButton("Cancel");
+	    JTextField in = new JTextField(10);
+	    d.add(new JLabel(prompt));
+	    d.add(in);
+	    d.add(ok);
+	    d.add(canc);
 
-		in.addActionListener(_ ->{
-			fName.set(in.getText());
-			d.dispose();
-		});
+	    in.addActionListener(_ -> {
+	        if (!in.getText().trim().isEmpty()) {
+	            fName.set(in.getText().trim());
+	            d.dispose();
+	        } else {
+	            makeErrorDialog(frame, "Input field left blank.");
+	        }
+	    });
 
-		ok.addActionListener(_ ->{
-			fName.set(in.getText());
-			d.dispose();
-		});
+	    ok.addActionListener(_ -> {
+	        if (!in.getText().trim().isEmpty()) {
+	            fName.set(in.getText().trim());
+	            d.dispose();
+	        } else {
+	            makeErrorDialog(frame, "Input field left blank.");
+	        }
+	    });
 
-		canc.addActionListener(_ -> {
-			fName.set(null);
-			d.dispose();
-		});
+	    canc.addActionListener(_ -> {
+	        fName.set(null);
+	        d.dispose();
+	    });
 
-		d.pack();
-		d.setLocationRelativeTo(null);
-		d.setVisible(true);
+	    d.pack();
+	    d.setLocationRelativeTo(null);
+	    d.setVisible(true);
 
-		try {
-			if (fName.get() == null || fName.get().isEmpty())
-				makeErrorDialog(frame, "Input field left blank.");
-			return null;
-		} catch (NullPointerException e) {
-			e.printStackTrace();
-		}
-		System.out.println(fName.get());
-		return fName.get();
+	    return fName.get();
 	}
+
 
 	public static int saveFromTextArea(JFrame frame, JTextArea area, String fileName) {
 		String contents = area.getText();
 
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter("tests/" + fileName))) {
 			writer.write(contents);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -285,7 +306,7 @@ public class Main {
 		}
 
 		area.setText("");
-		try (BufferedReader reader = new BufferedReader(new FileReader(fileName))){
+		try (BufferedReader reader = new BufferedReader(new FileReader("tests/" + fileName))){
 			String line = reader.readLine();
 			while (line != null) {
 				area.append(line + "\n");
