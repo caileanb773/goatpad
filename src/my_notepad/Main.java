@@ -7,6 +7,7 @@ import java.awt.HeadlessException;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -19,6 +20,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
+
+import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -31,21 +34,29 @@ import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.Document;
+import javax.swing.undo.UndoManager;
 
 public class Main {
 
 	// TODO: FileNotFoundException is thrown when saving as a path instead of creating folders
+	// TODO use java's built in file managfement
+	// TODO implement undo/redo
+	// TODO implement copy/paste
 
-	public static final int SUCCESS = 0;
-	public static final int FAIL = -1;
-	public static boolean isModified = false;
+	private static final int SUCCESS = 0;
+	private static final int FAIL = -1;
+	private static boolean isModified = false;
+	private static UndoManager undoMgr = new UndoManager();
 
 	public static void main(String[] args) {
 
 		JFrame frame = new JFrame();
+		Main m = new Main();
 		
 		// Text input area
 		JTextArea input = new JTextArea();
@@ -72,10 +83,18 @@ public class Main {
 		// Edit
 		JMenu mEdit = new JMenu("Edit");
 		JMenuItem mDateTime  = new JMenuItem("Date/Time");
+		JMenuItem mCopy = new JMenuItem("Copy");
+		JMenuItem mCut = new JMenuItem("Cut");
 		JMenuItem mPaste = new JMenuItem("Paste");
-		mEdit.add(mDateTime);
+		JMenuItem mUndo = new JMenuItem("Undo");
+		JMenuItem mRedo = new JMenuItem("Redo");
+		mEdit.add(mCopy);
+		mEdit.add(mCut);
 		mEdit.add(mPaste);
-		
+		mEdit.add(mUndo);
+		mEdit.add(mRedo);
+		mEdit.add(mDateTime);
+
 		//
 		JMenu mTools = new JMenu("Tools");
 		JMenuItem mWCount = new JMenuItem("Word Count");
@@ -97,14 +116,18 @@ public class Main {
 		frame.add(inputScr);
 
 		// Action Events
-		mSave.addActionListener(_ -> saveFile(frame, "Enter a name for the file: ", input));
-		mOpen.addActionListener(_ -> openFile(frame, "Enter the name of file to open: ", input));
-		mExit.addActionListener(_ -> checkBeforeExit(frame, input));
-		mDateTime.addActionListener(_ -> writeDateTime(input));
-		mPaste.addActionListener(_ -> pasteFromClipBoard(input));
-		mAbout.addActionListener(_ -> printAbout(frame));
-		mNew.addActionListener(_ -> checkBeforeNewFile(frame, input));
-		mWCount.addActionListener(_ -> displayWordCount(frame, input));
+		mSave.addActionListener(_ -> m.saveFile(frame, "Enter a name for the file: ", input));
+		mOpen.addActionListener(_ -> m.openFile(frame, "Enter the name of file to open: ", input));
+		mExit.addActionListener(_ -> m.checkBeforeExit(frame, input));
+		mUndo.addActionListener(_ -> m.undo());
+		mRedo.addActionListener(_ -> m.redo());
+		mCopy.addActionListener(_ -> input.copy());
+		mCut.addActionListener(_ -> input.cut());
+		mPaste.addActionListener(_ -> input.paste());
+		mDateTime.addActionListener(_ -> m.writeDateTime(input));
+		mAbout.addActionListener(_ -> m.printAbout(frame));
+		mNew.addActionListener(_ -> m.checkBeforeNewFile(frame, input));
+		mWCount.addActionListener(_ -> m.displayWordCount(frame, input));
 
 		input.getDocument().addDocumentListener(new DocumentListener() {
 			public void insertUpdate(DocumentEvent e) { isModified = true; 
@@ -114,11 +137,13 @@ public class Main {
 			public void changedUpdate(DocumentEvent e) { isModified = true; 
 			System.out.println("isModified is now: " + isModified);}
 		});
+		
+		// Setup undo/redo functionality
+		Main.setupUndoFunc(input, Main.undoMgr);
 
 		// Icon
 		ImageIcon icon = new ImageIcon("asset/icon.png");
 		frame.setIconImage(icon.getImage());
-
 		frame.setVisible(true);
 		frame.setResizable(true);
 		frame.setTitle("Goatpad");
@@ -128,13 +153,51 @@ public class Main {
 		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		frame.addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
-				checkBeforeExit(frame, input);
+				m.checkBeforeExit(frame, input);
 			}
 		});
 
 	}
 
-	public static void printAbout(JFrame frame) {
+	private static void setupUndoFunc(JTextArea area, UndoManager undoMgr) {
+		Document doc = area.getDocument();
+		doc.addUndoableEditListener(e -> undoMgr.addEdit(e.getEdit()));
+        area.getInputMap().put(KeyStroke.getKeyStroke("ctrl Z"), "undoAction");
+        area.getActionMap().put("undoAction", new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override
+            public void actionPerformed(ActionEvent e) {
+                if (undoMgr.canUndo()) {
+                    undoMgr.undo();
+                }
+            }
+        });
+        
+        area.getInputMap().put(KeyStroke.getKeyStroke("ctrl Y"), "redoAction");
+        area.getActionMap().put("redoAction", new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override
+            public void actionPerformed(ActionEvent e) {
+                if (undoMgr.canRedo()) {
+                    undoMgr.redo();
+                }
+            }
+        });
+	}
+	
+	public void undo() {
+		if (Main.undoMgr.canUndo()) {
+			Main.undoMgr.undo();
+		}
+	}
+	
+	public void redo() {
+		if (Main.undoMgr.canRedo()) {
+			Main.undoMgr.redo();
+		}
+	}
+
+	public void printAbout(JFrame frame) {
 		StringBuilder sb = new StringBuilder();
 		String temp = "";
 
@@ -158,18 +221,18 @@ public class Main {
 		d.setVisible(true);
 	}
 
-	public static void writeDateTime(JTextArea area) {
+	public void writeDateTime(JTextArea area) {
 		Date curr = new Date();
 		area.insert(curr.toString(), area.getCaretPosition());
 	}
 
-	public static void newFile(JFrame frame, JTextArea area) {
+	public void newFile(JFrame frame, JTextArea area) {
 		frame.setTitle("Goatpad");
 		area.setText("");
 		isModified = false;
 	}
 
-	public static void checkBeforeNewFile(JFrame frame, JTextArea area) {
+	public void checkBeforeNewFile(JFrame frame, JTextArea area) {
 		if (isModified == true) {
 			int choice = JOptionPane.showConfirmDialog(
 					frame,
@@ -191,7 +254,7 @@ public class Main {
 		}
 	}
 
-	public static void checkBeforeExit(JFrame frame, JTextArea area) {
+	public void checkBeforeExit(JFrame frame, JTextArea area) {
 		if (isModified) {
 			int choice = JOptionPane.showConfirmDialog(
 					frame,
@@ -216,7 +279,7 @@ public class Main {
 		}
 	}
 
-	public static int saveFile(JFrame frame, String prompt, JTextArea area) {
+	public int saveFile(JFrame frame, String prompt, JTextArea area) {
 		String fName = getFileName(frame, prompt);
 		if (fName == null || fName.isEmpty()) {
 			System.out.println("getFileName in saveFile returned FAIL");
@@ -233,7 +296,7 @@ public class Main {
 		}
 	}
 
-	public static int openFile(JFrame frame, String prompt, JTextArea area) {
+	public int openFile(JFrame frame, String prompt, JTextArea area) {
 		String fName = getFileName(frame, prompt);
 
 		if (fName == null) {
@@ -250,14 +313,14 @@ public class Main {
 		}
 	}
 
-	public static int wordCount(JTextArea area) {
+	public int wordCount(JTextArea area) {
 		String content = area.getText();
 		if (content.trim().isEmpty()) return 0;
 		String[] words = content.trim().split("\\s+");
 		return words.length;
 	}
-	
-	public static void displayWordCount(JFrame frame, JTextArea area) {
+
+	public void displayWordCount(JFrame frame, JTextArea area) {
 		JDialog d = new JDialog(frame, "Word Count", true);
 		d.setLayout(new FlowLayout());
 		int count = wordCount(area);
@@ -277,7 +340,7 @@ public class Main {
 		ok.addActionListener(_ -> {
 			d.dispose();
 		});
-		
+
 		d.setFocusable(true);
 		d.setFocusableWindowState(true);
 		d.pack();
@@ -285,7 +348,7 @@ public class Main {
 		d.setVisible(true);
 	}
 
-	public static String getFileName(JFrame frame, String prompt) {
+	public String getFileName(JFrame frame, String prompt) {
 		AtomicReference<String> fName = new AtomicReference<>(null);
 
 		JDialog d = new JDialog(frame, prompt, true);
@@ -329,7 +392,7 @@ public class Main {
 	}
 
 
-	public static int saveFromTextArea(JFrame frame, JTextArea area, String fileName) {
+	public int saveFromTextArea(JFrame frame, JTextArea area, String fileName) {
 		String contents = area.getText();
 
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter("tests/" + fileName))) {
@@ -342,7 +405,7 @@ public class Main {
 		return SUCCESS;
 	}
 
-	public static int writeToTextArea(JFrame frame, JTextArea area, String fileName) {
+	public int writeToTextArea(JFrame frame, JTextArea area, String fileName) {
 		if (fileName == null) {
 			return FAIL;
 		}
@@ -366,33 +429,25 @@ public class Main {
 		return SUCCESS;
 	}
 
-	// TODO theres literally a method for this in JTextComponent
-	public static void copyToClipBoard(String str) {
-
-	}
-
-	public static void pasteFromClipBoard(JTextArea area) {
+	public void pasteFromClipBoard(JTextArea area) {
 		String str = getClipBoard();
 		area.insert(str, area.getCaretPosition());
 	}
 
-	private static String getClipBoard(){
+	private String getClipBoard(){
 		try {
 			return (String)Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
 		} catch (HeadlessException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();            
 		} catch (UnsupportedFlavorException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();            
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return "";
 	}
 
-	public static void makeErrorDialog(JFrame frame, String text) {
+	public void makeErrorDialog(JFrame frame, String text) {
 		JDialog d = new JDialog(frame, "Error!", true);
 		d.setLayout(new FlowLayout());
 		d.add(new JLabel(text));
