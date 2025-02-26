@@ -36,7 +36,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 public class Main {
-	
+
 	// TODO: FileNotFoundException is thrown when saving as a path instead of creating folders
 
 	public static final int SUCCESS = 0;
@@ -46,7 +46,7 @@ public class Main {
 	public static void main(String[] args) {
 
 		JFrame frame = new JFrame();
-
+		
 		// Text input area
 		JTextArea input = new JTextArea();
 		input.setEditable(true);
@@ -75,6 +75,11 @@ public class Main {
 		JMenuItem mPaste = new JMenuItem("Paste");
 		mEdit.add(mDateTime);
 		mEdit.add(mPaste);
+		
+		//
+		JMenu mTools = new JMenu("Tools");
+		JMenuItem mWCount = new JMenuItem("Word Count");
+		mTools.add(mWCount);
 
 		// Help
 		JMenu mOptHelp = new JMenu("Help");
@@ -84,6 +89,7 @@ public class Main {
 		// Construct mBar
 		mMenuBar.add(mOptFile);
 		mMenuBar.add(mEdit);
+		mMenuBar.add(mTools);
 		mMenuBar.add(mOptHelp);
 
 		// Add input to frame
@@ -98,6 +104,7 @@ public class Main {
 		mPaste.addActionListener(_ -> pasteFromClipBoard(input));
 		mAbout.addActionListener(_ -> printAbout(frame));
 		mNew.addActionListener(_ -> checkBeforeNewFile(frame, input));
+		mWCount.addActionListener(_ -> displayWordCount(frame, input));
 
 		input.getDocument().addDocumentListener(new DocumentListener() {
 			public void insertUpdate(DocumentEvent e) { isModified = true; 
@@ -228,11 +235,11 @@ public class Main {
 
 	public static int openFile(JFrame frame, String prompt, JTextArea area) {
 		String fName = getFileName(frame, prompt);
-		
+
 		if (fName == null) {
 			return FAIL;
 		}
-		
+
 		if (writeToTextArea(frame, area, fName) == SUCCESS) {
 			frame.setTitle("Goatpad - " + fName);
 			isModified = false;
@@ -243,47 +250,82 @@ public class Main {
 		}
 	}
 
+	public static int wordCount(JTextArea area) {
+		String content = area.getText();
+		if (content.trim().isEmpty()) return 0;
+		String[] words = content.trim().split("\\s+");
+		return words.length;
+	}
+	
+	public static void displayWordCount(JFrame frame, JTextArea area) {
+		JDialog d = new JDialog(frame, "Word Count", true);
+		d.setLayout(new FlowLayout());
+		int count = wordCount(area);
+		JLabel text = new JLabel("The document contains " + count + " words.");
+		JButton ok = new JButton("Ok");
+		ok.addActionListener(_ -> d.dispose());
+		d.add(text);
+		d.add(ok);
+		d.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyPressed(KeyEvent e) {
+				if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+					d.dispose();
+				}
+			}
+		});
+		ok.addActionListener(_ -> {
+			d.dispose();
+		});
+		
+		d.setFocusable(true);
+		d.setFocusableWindowState(true);
+		d.pack();
+		d.setLocationRelativeTo(null);
+		d.setVisible(true);
+	}
+
 	public static String getFileName(JFrame frame, String prompt) {
-	    AtomicReference<String> fName = new AtomicReference<>(null);
+		AtomicReference<String> fName = new AtomicReference<>(null);
 
-	    JDialog d = new JDialog(frame, prompt, true);
-	    d.setLayout(new FlowLayout());
-	    JButton ok = new JButton("OK");
-	    JButton canc = new JButton("Cancel");
-	    JTextField in = new JTextField(10);
-	    d.add(new JLabel(prompt));
-	    d.add(in);
-	    d.add(ok);
-	    d.add(canc);
+		JDialog d = new JDialog(frame, prompt, true);
+		d.setLayout(new FlowLayout());
+		JButton ok = new JButton("OK");
+		JButton canc = new JButton("Cancel");
+		JTextField in = new JTextField(10);
+		d.add(new JLabel(prompt));
+		d.add(in);
+		d.add(ok);
+		d.add(canc);
 
-	    in.addActionListener(_ -> {
-	        if (!in.getText().trim().isEmpty()) {
-	            fName.set(in.getText().trim());
-	            d.dispose();
-	        } else {
-	            makeErrorDialog(frame, "Input field left blank.");
-	        }
-	    });
+		in.addActionListener(_ -> {
+			if (!in.getText().trim().isEmpty()) {
+				fName.set(in.getText().trim());
+				d.dispose();
+			} else {
+				makeErrorDialog(frame, "Input field left blank.");
+			}
+		});
 
-	    ok.addActionListener(_ -> {
-	        if (!in.getText().trim().isEmpty()) {
-	            fName.set(in.getText().trim());
-	            d.dispose();
-	        } else {
-	            makeErrorDialog(frame, "Input field left blank.");
-	        }
-	    });
+		ok.addActionListener(_ -> {
+			if (!in.getText().trim().isEmpty()) {
+				fName.set(in.getText().trim());
+				d.dispose();
+			} else {
+				makeErrorDialog(frame, "Input field left blank.");
+			}
+		});
 
-	    canc.addActionListener(_ -> {
-	        fName.set(null);
-	        d.dispose();
-	    });
+		canc.addActionListener(_ -> {
+			fName.set(null);
+			d.dispose();
+		});
 
-	    d.pack();
-	    d.setLocationRelativeTo(null);
-	    d.setVisible(true);
+		d.pack();
+		d.setLocationRelativeTo(null);
+		d.setVisible(true);
 
-	    return fName.get();
+		return fName.get();
 	}
 
 
