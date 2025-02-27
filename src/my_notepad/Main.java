@@ -14,17 +14,19 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -43,11 +45,6 @@ import javax.swing.undo.UndoManager;
 
 public class Main {
 
-	// TODO: FileNotFoundException is thrown when saving as a path instead of creating folders
-	// TODO use java's built in file managfement
-	// TODO implement undo/redo
-	// TODO implement copy/paste
-
 	private static final int SUCCESS = 0;
 	private static final int FAIL = -1;
 	private static boolean isModified = false;
@@ -57,7 +54,7 @@ public class Main {
 
 		JFrame frame = new JFrame();
 		Main m = new Main();
-		
+
 		// Text input area
 		JTextArea input = new JTextArea();
 		input.setEditable(true);
@@ -116,8 +113,8 @@ public class Main {
 		frame.add(inputScr);
 
 		// Action Events
-		mSave.addActionListener(_ -> m.saveFile(frame, "Enter a name for the file: ", input));
-		mOpen.addActionListener(_ -> m.openFile(frame, "Enter the name of file to open: ", input));
+		mSave.addActionListener(_ -> m.saveFile(frame, input));
+		mOpen.addActionListener(_ -> m.checkBeforeOpen(frame, input));
 		mExit.addActionListener(_ -> m.checkBeforeExit(frame, input));
 		mUndo.addActionListener(_ -> m.undo());
 		mRedo.addActionListener(_ -> m.redo());
@@ -129,6 +126,9 @@ public class Main {
 		mNew.addActionListener(_ -> m.checkBeforeNewFile(frame, input));
 		mWCount.addActionListener(_ -> m.displayWordCount(frame, input));
 
+		// Setup undo/redo functionality
+		Main.setupUndoFunc(input, Main.undoMgr);
+
 		input.getDocument().addDocumentListener(new DocumentListener() {
 			public void insertUpdate(DocumentEvent e) { isModified = true; 
 			System.out.println("isModified is now: " + isModified);}
@@ -137,16 +137,31 @@ public class Main {
 			public void changedUpdate(DocumentEvent e) { isModified = true; 
 			System.out.println("isModified is now: " + isModified);}
 		});
-		
-		// Setup undo/redo functionality
-		Main.setupUndoFunc(input, Main.undoMgr);
+
+		input.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_DOWN_MASK), "save");
+		input.getActionMap().put("save", new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				m.saveFile(frame, input);
+			}
+		});
+
+		input.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK), "open");
+		input.getActionMap().put("open", new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				m.checkBeforeOpen(frame, input);
+			}
+		});
 
 		// Icon
 		ImageIcon icon = new ImageIcon("asset/icon.png");
 		frame.setIconImage(icon.getImage());
 		frame.setVisible(true);
 		frame.setResizable(true);
-		frame.setTitle("Goatpad");
+		frame.setTitle("Goatpad - Untitled");
 		frame.pack();
 		frame.setSize(400,400);
 		frame.setLocationRelativeTo(null);
@@ -162,35 +177,35 @@ public class Main {
 	private static void setupUndoFunc(JTextArea area, UndoManager undoMgr) {
 		Document doc = area.getDocument();
 		doc.addUndoableEditListener(e -> undoMgr.addEdit(e.getEdit()));
-        area.getInputMap().put(KeyStroke.getKeyStroke("ctrl Z"), "undoAction");
-        area.getActionMap().put("undoAction", new AbstractAction() {
+		area.getInputMap().put(KeyStroke.getKeyStroke("ctrl Z"), "undoAction");
+		area.getActionMap().put("undoAction", new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override
-            public void actionPerformed(ActionEvent e) {
-                if (undoMgr.canUndo()) {
-                    undoMgr.undo();
-                }
-            }
-        });
-        
-        area.getInputMap().put(KeyStroke.getKeyStroke("ctrl Y"), "redoAction");
-        area.getActionMap().put("redoAction", new AbstractAction() {
+			public void actionPerformed(ActionEvent e) {
+				if (undoMgr.canUndo()) {
+					undoMgr.undo();
+				}
+			}
+		});
+
+		area.getInputMap().put(KeyStroke.getKeyStroke("ctrl Y"), "redoAction");
+		area.getActionMap().put("redoAction", new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override
-            public void actionPerformed(ActionEvent e) {
-                if (undoMgr.canRedo()) {
-                    undoMgr.redo();
-                }
-            }
-        });
+			public void actionPerformed(ActionEvent e) {
+				if (undoMgr.canRedo()) {
+					undoMgr.redo();
+				}
+			}
+		});
 	}
-	
+
 	public void undo() {
 		if (Main.undoMgr.canUndo()) {
 			Main.undoMgr.undo();
 		}
 	}
-	
+
 	public void redo() {
 		if (Main.undoMgr.canRedo()) {
 			Main.undoMgr.redo();
@@ -227,9 +242,31 @@ public class Main {
 	}
 
 	public void newFile(JFrame frame, JTextArea area) {
-		frame.setTitle("Goatpad");
+		frame.setTitle("Goatpad - Untitled");
 		area.setText("");
 		isModified = false;
+	}
+
+	public void checkBeforeOpen(JFrame frame, JTextArea area) {
+		if (isModified) {
+			int choice = JOptionPane.showConfirmDialog(
+					frame,
+					"You have unsaved changes.\nSave before opening new file?",
+					"Warning",
+					JOptionPane.YES_NO_CANCEL_OPTION);
+			if (choice == JOptionPane.YES_OPTION) {
+				if (saveFile(frame, area) == FAIL){
+					return;
+				}
+			} else if (choice == JOptionPane.CANCEL_OPTION
+					|| choice == JOptionPane.CLOSED_OPTION) {
+				return;
+			} else {
+				openFile(frame, area);
+			}
+		} else {
+			openFile(frame, area);
+		}
 	}
 
 	public void checkBeforeNewFile(JFrame frame, JTextArea area) {
@@ -240,15 +277,15 @@ public class Main {
 					"Warning",
 					JOptionPane.YES_NO_CANCEL_OPTION);
 			if (choice == JOptionPane.YES_OPTION) {
-				if (saveFile(frame, "Enter file name to save as: ", area) == FAIL){
+				if (saveFile(frame, area) == FAIL){
 					return;
 				}
 			} else if (choice == JOptionPane.CANCEL_OPTION
-					|| choice == JOptionPane.NO_OPTION
 					|| choice == JOptionPane.CLOSED_OPTION) {
 				return;
+			} else {
+				newFile(frame, area);
 			}
-			newFile(frame, area);
 		} else {
 			newFile(frame, area);
 		}
@@ -262,7 +299,7 @@ public class Main {
 					"Warning",
 					JOptionPane.YES_NO_CANCEL_OPTION);
 			if (choice == JOptionPane.YES_OPTION) {
-				if (saveFile(frame, "Enter file name to save as: ", area) == FAIL) {
+				if (saveFile(frame, area) == FAIL) {
 					return;
 				} else {
 					frame.dispose();
@@ -279,38 +316,62 @@ public class Main {
 		}
 	}
 
-	public int saveFile(JFrame frame, String prompt, JTextArea area) {
-		String fName = getFileName(frame, prompt);
-		if (fName == null || fName.isEmpty()) {
-			System.out.println("getFileName in saveFile returned FAIL");
-			return FAIL;
-		}
+	public int saveFile(JFrame frame, JTextArea area) {
+		JFileChooser fileChooser = new JFileChooser();
+		int opt = fileChooser.showSaveDialog(frame);
+		int confirm = 0;
 
-		if (saveFromTextArea(frame, area, fName) == SUCCESS) {
+		if (opt == JFileChooser.APPROVE_OPTION) {
+			File file = fileChooser.getSelectedFile();
+
+			if (file.exists()) {
+				confirm = JOptionPane.showConfirmDialog(
+						frame,
+						"The file already exists. Do you want to overwrite it?",
+						"Confirm Overwrite",
+						JOptionPane.YES_NO_OPTION);
+			}
+
+			if (confirm != JOptionPane.YES_OPTION) {
+				return FAIL;
+			}
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))){
+				writer.write(area.getText());
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(frame, "Error saving file.", "Error", JOptionPane.ERROR_MESSAGE);
+				return FAIL;
+			}
 			isModified = false;
 			System.out.println("isModified is now: " + isModified);
-			frame.setTitle("Goatpad - " + fName);
+			frame.setTitle("Goatpad - " + file.getName());
 			return SUCCESS;
-		} else {
-			return FAIL;
 		}
+		return FAIL;
 	}
 
-	public int openFile(JFrame frame, String prompt, JTextArea area) {
-		String fName = getFileName(frame, prompt);
+	public int openFile(JFrame frame, JTextArea area) {
+		JFileChooser fileChooser = new JFileChooser();
+		int opt = fileChooser.showOpenDialog(frame);
 
-		if (fName == null) {
-			return FAIL;
-		}
-
-		if (writeToTextArea(frame, area, fName) == SUCCESS) {
-			frame.setTitle("Goatpad - " + fName);
+		if (opt == JFileChooser.APPROVE_OPTION) {
+			File file = fileChooser.getSelectedFile();
+			try (BufferedReader reader = new BufferedReader (new FileReader(file))){
+				area.setText("");
+				String line;
+				while ((line = reader.readLine()) != null) {
+					area.append(line + "\n");
+				}
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(frame, "Error opening file.", "Error", JOptionPane.ERROR_MESSAGE);
+				return FAIL;
+			}
+			frame.setTitle("Goatpad - " + file.getName());
 			isModified = false;
-			System.out.println("isModified is now: " + isModified);
+			System.out.println("isModified is now " + isModified);
 			return SUCCESS;
-		} else {
-			return FAIL;
 		}
+		System.out.println("openFile returned FAIL after try/catch block.");
+		return FAIL;
 	}
 
 	public int wordCount(JTextArea area) {
@@ -390,7 +451,6 @@ public class Main {
 
 		return fName.get();
 	}
-
 
 	public int saveFromTextArea(JFrame frame, JTextArea area, String fileName) {
 		String contents = area.getText();
