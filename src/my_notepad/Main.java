@@ -52,6 +52,7 @@ public class Main {
 
 	public static void main(String[] args) {
 
+		
 		JFrame frame = new JFrame();
 		Main m = new Main();
 
@@ -72,6 +73,9 @@ public class Main {
 		JMenuItem mOpen = new JMenuItem("Open");
 		JMenuItem mExit = new JMenuItem("Exit");
 		JMenuItem mNew = new JMenuItem("New");
+        mSave.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_DOWN_MASK));
+        mOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK));
+        mNew.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK));
 		mOptFile.add(mNew);
 		mOptFile.add(mSave);
 		mOptFile.add(mOpen);
@@ -85,6 +89,11 @@ public class Main {
 		JMenuItem mPaste = new JMenuItem("Paste");
 		JMenuItem mUndo = new JMenuItem("Undo");
 		JMenuItem mRedo = new JMenuItem("Redo");
+        mCopy.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_DOWN_MASK));
+        mCut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, KeyEvent.CTRL_DOWN_MASK));
+        mPaste.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK));
+        mUndo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK));
+        mRedo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK));
 		mEdit.add(mCopy);
 		mEdit.add(mCut);
 		mEdit.add(mPaste);
@@ -92,7 +101,7 @@ public class Main {
 		mEdit.add(mRedo);
 		mEdit.add(mDateTime);
 
-		//
+		// Tools
 		JMenu mTools = new JMenu("Tools");
 		JMenuItem mWCount = new JMenuItem("Word Count");
 		mTools.add(mWCount);
@@ -144,6 +153,15 @@ public class Main {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				m.saveFile(frame, input);
+			}
+		});
+		
+		input.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK), "new");
+		input.getActionMap().put("new", new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				m.checkBeforeNewFile(frame, input);
 			}
 		});
 
