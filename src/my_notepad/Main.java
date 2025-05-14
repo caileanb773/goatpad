@@ -19,8 +19,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
+
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -175,8 +177,14 @@ public class Main {
 		});
 
 		// Icon
-		ImageIcon icon = new ImageIcon("asset/icon.png");
-		frame.setIconImage(icon.getImage());
+		
+		URL iconURL = Main.class.getResource("/asset/icon.png");
+		if (iconURL != null) {
+			ImageIcon icon = new ImageIcon(iconURL);
+			frame.setIconImage(icon.getImage());
+		} else {
+			System.out.println("Error retrieving icon image.");
+		}
 		frame.setVisible(true);
 		frame.setResizable(true);
 		frame.setTitle("Goatpad - Untitled");
