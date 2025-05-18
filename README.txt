@@ -15,5 +15,3 @@ CTRL+V	Paste
 CTRL+X	Cut
 
 Some shortcuts are provided through Windows functionality (Cut, copy paste) and some are hard-coded into the app.
-
-To compile: Run the batch file, the .jar file will be created in the bin directory. If you want to run the program from the desktop, create a shortcut.
